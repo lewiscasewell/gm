@@ -39,6 +39,14 @@ func main() {
 				return fmt.Errorf("please set your currency api token")
 			}
 			var greeting string
+			var fiatSymbol string
+			if profile.BaseCurrency == "GBP" {
+				fiatSymbol = "£"
+			} else if profile.BaseCurrency == "EUR" {
+				fiatSymbol = "€"
+			} else {
+				fiatSymbol = "$"
+			}
 
 			if time.Now().Hour() < 12 {
 				greeting = "Good morning"
@@ -91,21 +99,12 @@ func main() {
 						panic(err)
 					}
 
-					fmt.Printf("You have £%.2f worth of %s\n", r.Price*a*exchangeRate, s)
+					fmt.Printf("You have %s%.2f worth of %s\n", fiatSymbol, r.Price*a*exchangeRate, s)
 					total += r.Price * a * exchangeRate
 				}(symbol, amount)
 			}
 
 			wg.Wait()
-
-			fiatSymbol := ""
-			if profile.BaseCurrency == "GBP" {
-				fiatSymbol = "£"
-			} else if profile.BaseCurrency == "EUR" {
-				fiatSymbol = "€"
-			} else {
-				fiatSymbol = "$"
-			}
 
 			defer fmt.Printf("\nTotal: %s%.2f at %s\n", fiatSymbol, total, time.Now().Format("15:04:05"))
 			return nil
