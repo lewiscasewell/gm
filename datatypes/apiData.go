@@ -1,6 +1,8 @@
 package datatypes
 
-import "time"
+import (
+	"time"
+)
 
 type Rate struct {
 	Currency string  `json:"currency"`
@@ -42,11 +44,3 @@ type ExchangeRateUSD struct {
 		} `json:"USD"`
 	} `json:"data"`
 }
-
-type Profile struct {
-	Name         string `json:"name"`
-	Token        string `json:"token"`
-	BaseCurrency string `json:"baseCurrency"`
-}
-
-type Wallet map[string]float64
