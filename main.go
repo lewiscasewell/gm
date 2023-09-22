@@ -358,6 +358,15 @@ func main() {
 					return nil
 				},
 			},
+			{
+				Name:  "reset",
+				Usage: "reset your wallet",
+				Action: func(cCtx *cli.Context) error {
+					newEmptyWallet := []byte(`{}`)
+					os.WriteFile("wallet.json", newEmptyWallet, 0644)
+					return nil
+				},
+			},
 		},
 	}
 
