@@ -6,3 +6,8 @@ build:
 
 deploy:
 	@cp bin/gm /usr/local/bin
+	@echo "Deployed to /usr/local/bin"
+	@rm -rf bin
+
+bad: build deploy
+

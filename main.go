@@ -3,6 +3,7 @@ package main
 import (
 	"crypto-price/api"
 	"crypto-price/datatypes"
+	"crypto-price/util"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,8 +16,21 @@ import (
 )
 
 func main() {
+	dirname, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	profileURL, err := util.GetFileUrl("profile")
+	if err != nil {
+		panic(err)
+	}
+	walletURL, err := util.GetFileUrl("wallet")
+	if err != nil {
+		panic(err)
+	}
+
 	var profile datatypes.Profile
-	b, err := os.ReadFile("profile.json")
+	b, err := os.ReadFile(profileURL)
 	if err != nil {
 		newProfile := []byte(`{
 			"name": "Chief",
@@ -24,11 +38,23 @@ func main() {
 			"baseCurrency": "GBP"
 		}`)
 
-		os.WriteFile("profile.json", newProfile, 0644)
+		if err = os.Mkdir(fmt.Sprintf("%s/gm", dirname), 0755); err != nil {
+			panic(err)
+		}
+
+		if err = os.WriteFile(profileURL, newProfile, 0644); err != nil {
+			panic(err)
+		}
+
+		b, err = os.ReadFile(profileURL)
+		if err != nil {
+			panic(err)
+		}
+
 	}
 
 	if err := json.Unmarshal(b, &profile); err != nil {
-		return
+		panic(err)
 	}
 
 	app := &cli.App{
@@ -36,10 +62,16 @@ func main() {
 		Usage: "are you rich or broke today?",
 		Action: func(cCtx *cli.Context) error {
 			if profile.Token == "" {
-				return fmt.Errorf("please set your currency api token")
+				fmt.Println("Hello and welcome. To use gm please set your currency api token.")
+				fmt.Println("You can get one for free at https://currencyapi.com/")
+				fmt.Println("Then run `gm set token <your token>`")
+				return nil
 			}
-			var greeting string
-			var fiatSymbol string
+
+			var (
+				greeting, fiatSymbol string
+			)
+
 			if profile.BaseCurrency == "GBP" {
 				fiatSymbol = "£"
 			} else if profile.BaseCurrency == "EUR" {
@@ -65,13 +97,13 @@ func main() {
 
 			var wg sync.WaitGroup
 
-			total := 0.0
+			totalWorth := 0.0
 
 			var wallet datatypes.Wallet
-			b, err := os.ReadFile("wallet.json")
+			b, err := os.ReadFile(walletURL)
 			if err != nil {
 				newEmptyWallet := []byte(`{}`)
-				if err := os.WriteFile("wallet.json", newEmptyWallet, 0644); err != nil {
+				if err := os.WriteFile(walletURL, newEmptyWallet, 0644); err != nil {
 					return err
 				}
 
@@ -79,7 +111,7 @@ func main() {
 					return err
 				}
 
-				b, err = os.ReadFile("wallet.json")
+				b, err = os.ReadFile(walletURL)
 				if err != nil {
 					return err
 				}
@@ -100,13 +132,13 @@ func main() {
 					}
 
 					fmt.Printf("You have %s%.2f worth of %s\n", fiatSymbol, r.Price*a*exchangeRate, s)
-					total += r.Price * a * exchangeRate
+					totalWorth += r.Price * a * exchangeRate
 				}(symbol, amount)
 			}
 
 			wg.Wait()
 
-			defer fmt.Printf("\nTotal: %s%.2f at %s\n", fiatSymbol, total, time.Now().Format("15:04:05"))
+			defer fmt.Printf("\nTotal: %s%.2f at %s\n", fiatSymbol, totalWorth, time.Now().Format("15:04:05"))
 			return nil
 		},
 		Commands: []*cli.Command{
@@ -114,7 +146,8 @@ func main() {
 				Name: "get",
 				Subcommands: []*cli.Command{
 					{
-						Name: "profile",
+						Name:    "profile",
+						Aliases: []string{"p"},
 						Action: func(cCtx *cli.Context) error {
 							fmt.Printf("Name: %s\n", profile.Name)
 							fmt.Printf("Token: %s\n", profile.Token)
@@ -123,13 +156,14 @@ func main() {
 						},
 					},
 					{
-						Name: "wallet",
+						Name:    "wallet",
+						Aliases: []string{"w"},
 						Action: func(cCtx *cli.Context) error {
 							var wallet datatypes.Wallet
-							b, err := os.ReadFile("wallet.json")
+							b, err := os.ReadFile(walletURL)
 							if err != nil {
 								newEmptyWallet := []byte(`{}`)
-								os.WriteFile("wallet.json", newEmptyWallet, 0644)
+								os.WriteFile(walletURL, newEmptyWallet, 0644)
 								wallet = make(datatypes.Wallet)
 							} else {
 								if err := json.Unmarshal(b, &wallet); err != nil {
@@ -161,7 +195,7 @@ func main() {
 								return err
 							}
 
-							os.WriteFile("profile.json", b, 0644)
+							os.WriteFile(profileURL, b, 0644)
 							return nil
 						},
 					},
@@ -183,13 +217,14 @@ func main() {
 								return err
 							}
 
-							os.WriteFile("profile.json", b, 0644)
+							os.WriteFile(profileURL, b, 0644)
 							return nil
 						},
 					},
 					{
-						Name:  "name",
-						Usage: "sets the name of the user",
+						Name:    "name",
+						Aliases: []string{"n"},
+						Usage:   "sets the name of the user",
 						Action: func(cCtx *cli.Context) error {
 							profile.Name = cCtx.Args().First()
 
@@ -198,7 +233,7 @@ func main() {
 								return err
 							}
 
-							os.WriteFile("profile.json", b, 0644)
+							os.WriteFile(profileURL, b, 0644)
 							return nil
 						},
 					},
@@ -208,7 +243,7 @@ func main() {
 				Name:    "buy",
 				Aliases: []string{"b"},
 				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "hard"},
+					&cli.BoolFlag{Name: "set"},
 				},
 				Usage: "buy a crypto currency",
 				Action: func(cCtx *cli.Context) error {
@@ -220,18 +255,18 @@ func main() {
 					}
 
 					var wallet datatypes.Wallet
-					b, err := os.ReadFile("wallet.json")
+					b, err := os.ReadFile(walletURL)
 					if err != nil {
 						newEmptyWallet := []byte(`{}`)
 
-						os.WriteFile("wallet.json", newEmptyWallet, 0644)
+						os.WriteFile(walletURL, newEmptyWallet, 0644)
 						wallet = make(datatypes.Wallet)
 
 						if err := json.Unmarshal(newEmptyWallet, &wallet); err != nil {
 							return err
 						}
 
-						b, err = os.ReadFile("wallet.json")
+						b, err = os.ReadFile(walletURL)
 						if err != nil {
 							return err
 						}
@@ -257,7 +292,7 @@ func main() {
 						return fmt.Errorf("amount must be positive")
 					}
 
-					if cCtx.Bool("hard") {
+					if cCtx.Bool("set") {
 						wallet[currency] = amountFloat
 					} else {
 						wallet[currency] = currentAmount + amountFloat
@@ -267,7 +302,7 @@ func main() {
 						return err
 					}
 
-					os.WriteFile("wallet.json", b, 0644)
+					os.WriteFile(walletURL, b, 0644)
 
 					fmt.Println("Previous holdings of", currency, ":", currentAmount)
 					fmt.Println("New holdings of", currency, ":", wallet[currency])
@@ -301,18 +336,18 @@ func main() {
 					}
 
 					var wallet datatypes.Wallet
-					b, err := os.ReadFile("wallet.json")
+					b, err := os.ReadFile(walletURL)
 					if err != nil {
 						newEmptyWallet := []byte(`{}`)
 
-						os.WriteFile("wallet.json", newEmptyWallet, 0644)
+						os.WriteFile(walletURL, newEmptyWallet, 0644)
 						wallet = make(datatypes.Wallet)
 
 						if err := json.Unmarshal(newEmptyWallet, &wallet); err != nil {
 							return err
 						}
 
-						b, err = os.ReadFile("wallet.json")
+						b, err = os.ReadFile(walletURL)
 						if err != nil {
 							return err
 						}
@@ -330,7 +365,7 @@ func main() {
 					currentAmount := wallet[currency]
 
 					if cCtx.Bool("all") {
-						wallet[currency] = 0
+						delete(wallet, currency)
 					} else {
 						amountFloat, err := strconv.ParseFloat(amount, 64)
 						if err != nil {
@@ -351,7 +386,7 @@ func main() {
 						return err
 					}
 
-					os.WriteFile("wallet.json", b, 0644)
+					os.WriteFile(walletURL, b, 0644)
 
 					fmt.Println("Previous holdings of", currency, ":", currentAmount)
 					fmt.Println("New holdings of", currency, ":", wallet[currency])
@@ -363,7 +398,7 @@ func main() {
 				Usage: "reset your wallet",
 				Action: func(cCtx *cli.Context) error {
 					newEmptyWallet := []byte(`{}`)
-					os.WriteFile("wallet.json", newEmptyWallet, 0644)
+					os.WriteFile(walletURL, newEmptyWallet, 0644)
 					return nil
 				},
 			},
