@@ -50,7 +50,10 @@ func main() {
 
 			fmt.Printf("\n\n\n\n%s %s, let's check your crypto on this fine day.\n\n", greeting, profile.Name)
 
-			exchangeRate := api.GetUsdGbpExchangeRate()
+			exchangeRate, err := api.GetUsdGbpExchangeRate()
+			if err != nil {
+				return err
+			}
 
 			var wg sync.WaitGroup
 
@@ -95,7 +98,16 @@ func main() {
 
 			wg.Wait()
 
-			defer fmt.Printf("\nTotal: £%.2f at %s\n", total, time.Now().Format("15:04:05"))
+			fiatSymbol := ""
+			if profile.BaseCurrency == "GBP" {
+				fiatSymbol = "£"
+			} else if profile.BaseCurrency == "EUR" {
+				fiatSymbol = "€"
+			} else {
+				fiatSymbol = "$"
+			}
+
+			defer fmt.Printf("\nTotal: %s%.2f at %s\n", fiatSymbol, total, time.Now().Format("15:04:05"))
 			return nil
 		},
 		Commands: []*cli.Command{
@@ -139,8 +151,9 @@ func main() {
 				Name: "set",
 				Subcommands: []*cli.Command{
 					{
-						Name:  "token",
-						Usage: "sets the currency api token",
+						Name:    "token",
+						Aliases: []string{"t"},
+						Usage:   "sets the currency api token",
 						Action: func(cCtx *cli.Context) error {
 							profile.Token = cCtx.Args().First()
 
@@ -154,8 +167,9 @@ func main() {
 						},
 					},
 					{
-						Name:  "currency",
-						Usage: "sets the base currency, e.g. GBP, USD, EUR",
+						Name:    "currency",
+						Aliases: []string{"c"},
+						Usage:   "sets the base currency, e.g. GBP, USD, EUR",
 						Action: func(cCtx *cli.Context) error {
 							newBaseCurrency := strings.ToUpper(cCtx.Args().First())
 
@@ -189,21 +203,6 @@ func main() {
 							return nil
 						},
 					},
-				},
-			},
-			{
-				Name:  "short",
-				Usage: "complete a task on the list",
-				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "serve", Aliases: []string{"s"}},
-					&cli.BoolFlag{Name: "option", Aliases: []string{"o"}},
-					&cli.StringFlag{Name: "message", Aliases: []string{"m"}},
-				},
-				Action: func(cCtx *cli.Context) error {
-					fmt.Println("serve:", cCtx.Bool("serve"))
-					fmt.Println("option:", cCtx.Bool("option"))
-					fmt.Println("message:", cCtx.String("message"))
-					return nil
 				},
 			},
 			{
@@ -358,7 +357,6 @@ func main() {
 					fmt.Println("Previous holdings of", currency, ":", currentAmount)
 					fmt.Println("New holdings of", currency, ":", wallet[currency])
 					return nil
-
 				},
 			},
 		},

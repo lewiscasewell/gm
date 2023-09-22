@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -13,16 +14,39 @@ import (
 const apiUrl = "https://cex.io/api/ticker/%s/USD"
 
 // currency exchange api for fiat currencies
-const exchangeUrl = "https://api.currencyapi.com/v3/latest?apikey=cur_live_DInycfAzvFAqnXqqyAywtl3wXYcJkOVH8AGWZBiz&currencies=GBP&base_currency=USD"
+var exchangeUrl string
 
-func GetUsdGbpExchangeRate() float64 {
+func GetUsdGbpExchangeRate() (float64, error) {
+	b, err := os.ReadFile("profile.json")
+	if err != nil {
+		return 0, fmt.Errorf("error reading profile.json so cannot get API token")
+	}
+
+	var profile datatypes.Profile
+	if err := json.Unmarshal(b, &profile); err != nil {
+		return 0, fmt.Errorf("error unmarshalling profile.json so cannot get API token")
+	}
+
+	if profile.Token == "" {
+		return 0, fmt.Errorf("please set your currency api token")
+	}
+
+	if profile.BaseCurrency != "GBP" && profile.BaseCurrency != "EUR" && profile.BaseCurrency != "USD" {
+		return 0, fmt.Errorf("base currency must be GBP, EUR or USD, not %s", profile.BaseCurrency)
+	}
+
+	exchangeUrl = fmt.Sprintf("https://api.currencyapi.com/v3/latest?base_currency=USD&apikey=%s&currencies=%s", profile.Token, profile.BaseCurrency)
+
 	res, err := http.Get(exchangeUrl)
 
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	rate := &datatypes.ExchangeRate{}
+	rateGBP := &datatypes.ExchangeRateGBP{}
+
+	rateEUR := &datatypes.ExchangeRateEUR{}
+	rateUSD := &datatypes.ExchangeRateUSD{}
 
 	defer res.Body.Close()
 
@@ -32,9 +56,25 @@ func GetUsdGbpExchangeRate() float64 {
 			fmt.Println(err)
 		}
 
-		json.Unmarshal(bodyBytes, rate)
+		if profile.BaseCurrency == "GBP" {
+			if err = json.Unmarshal(bodyBytes, &rateGBP); err != nil {
+				fmt.Println(err)
+			}
+			return float64(rateGBP.Data.Gbp.Value), nil
+		} else if profile.BaseCurrency == "EUR" {
+			if err = json.Unmarshal(bodyBytes, &rateEUR); err != nil {
+				fmt.Println(err)
+			}
+			return float64(rateEUR.Data.Eur.Value), nil
+		} else {
+			if err = json.Unmarshal(bodyBytes, &rateUSD); err != nil {
+				fmt.Println(err)
+			}
+
+			return float64(rateUSD.Data.Usd.Value), nil
+		}
 	}
-	return float64(rate.Data.Gbp.Value)
+	return 0, fmt.Errorf("API returned status code %d", res.StatusCode)
 }
 
 func GetRate(currency string) (*datatypes.Rate, error) {
