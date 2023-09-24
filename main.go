@@ -2,8 +2,8 @@ package main
 
 import (
 	"crypto-price/api"
-	"crypto-price/datatypes"
-	"crypto-price/util"
+	"crypto-price/internal/datatypes"
+	"crypto-price/internal/util"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,15 +15,22 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func main() {
+var profile datatypes.Profile
 
-	walletURL, err := util.GetFileUrl("wallet")
+func init() {
+	profileURL, err := util.GetFileUrl("profile")
 	if err != nil {
 		panic(err)
 	}
-
-	var profile datatypes.Profile
+	profile.FileUrl = profileURL
 	if err := profile.GetFromJsonFile(); err != nil {
+		panic(err)
+	}
+}
+
+func main() {
+	walletURL, err := util.GetFileUrl("wallet")
+	if err != nil {
 		panic(err)
 	}
 
@@ -38,9 +45,7 @@ func main() {
 				return nil
 			}
 
-			var (
-				greeting string
-			)
+			var greeting string
 
 			fiatSymbol := profile.GetFiatSymbol()
 
@@ -52,9 +57,19 @@ func main() {
 				greeting = "Good evening"
 			}
 
-			fmt.Printf("\n\n\n\n%s %s, let's check your crypto on this fine day.\n\n", greeting, profile.Name)
+			fmt.Println(`
+			 ________  _____ ______      
+			|\   ____\|\   _ \  _   \    
+			\ \  \___|\ \  \\\__\ \  \   
+			 \ \  \  __\ \  \\|__| \  \  
+			  \ \  \|\  \ \  \    \ \  \ 
+			   \ \_______\ \__\    \ \__\
+			    \|_______|\|__|     \|__|
+			`)
 
-			exchangeRate, err := api.GetUsdGbpExchangeRate()
+			fmt.Printf("%s %s, let's check your crypto on this fine day.\n\n", greeting, profile.Name)
+
+			exchangeRate, err := api.GetFiatExchangeRate()
 			if err != nil {
 				return err
 			}
@@ -96,9 +111,7 @@ func main() {
 						Name:    "profile",
 						Aliases: []string{"p"},
 						Action: func(cCtx *cli.Context) error {
-							fmt.Printf("Name: %s\n", profile.Name)
-							fmt.Printf("Token: %s\n", profile.Token)
-							fmt.Printf("Base Currency: %s\n", profile.BaseCurrency)
+							fmt.Println(profile)
 							return nil
 						},
 					},
@@ -111,8 +124,8 @@ func main() {
 								return err
 							}
 
-							for currency, amount := range wallet {
-								fmt.Printf("%s: %.2f\n", currency, amount)
+							for cryptoSymbol, amount := range wallet {
+								fmt.Printf("%s: %.2f\n", cryptoSymbol, amount)
 							}
 
 							return nil
@@ -271,11 +284,31 @@ func main() {
 			},
 			{
 				Name:  "reset",
-				Usage: "reset your wallet",
+				Usage: "reset your wallet or profile",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "profile-only"},
+					&cli.BoolFlag{Name: "wallet-only"},
+				},
 				Action: func(cCtx *cli.Context) error {
-					var wallet datatypes.Wallet
-					if err := wallet.Reset(); err != nil {
-						return err
+					if cCtx.Bool("profile-only") {
+						if err := profile.Reset(datatypes.DefaultProfile); err != nil {
+							return err
+						}
+					} else if cCtx.Bool("wallet-only") {
+
+						var wallet datatypes.Wallet
+						if err := wallet.Reset(); err != nil {
+							return err
+						}
+						return nil
+					} else {
+						if err := profile.Reset(datatypes.DefaultProfile); err != nil {
+							return err
+						}
+						var wallet datatypes.Wallet
+						if err := wallet.Reset(); err != nil {
+							return err
+						}
 					}
 					return nil
 				},

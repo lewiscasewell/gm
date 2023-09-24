@@ -1,7 +1,7 @@
 package datatypes
 
 import (
-	"crypto-price/util"
+	"crypto-price/internal/util"
 	"encoding/json"
 	"os"
 )
@@ -44,6 +44,7 @@ func (w *Wallet) Reset() error {
 		return err
 	}
 	newEmptyWallet := []byte(`{}`)
+
 	os.WriteFile(walletURL, newEmptyWallet, 0644)
 
 	return nil

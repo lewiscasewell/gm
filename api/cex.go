@@ -1,8 +1,8 @@
 package api
 
 import (
-	"crypto-price/datatypes"
-	"crypto-price/util"
+	"crypto-price/internal/datatypes"
+	"crypto-price/internal/util"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,7 +17,7 @@ const apiUrl = "https://cex.io/api/ticker/%s/USD"
 // currency exchange api for fiat currencies
 var exchangeUrl string
 
-func GetUsdGbpExchangeRate() (float64, error) {
+func GetFiatExchangeRate() (float64, error) {
 	profileURL, err := util.GetFileUrl("profile")
 	if err != nil {
 		return 0, fmt.Errorf("error getting profile.json so cannot get API token")
@@ -82,6 +82,10 @@ func GetUsdGbpExchangeRate() (float64, error) {
 }
 
 func GetRate(currency string) (*datatypes.Rate, error) {
+	if len(currency) < 3 {
+		return nil, fmt.Errorf("currency must be 3 characters long")
+	}
+
 	ucc := strings.ToUpper(currency)
 
 	rate := &datatypes.Rate{
@@ -89,7 +93,6 @@ func GetRate(currency string) (*datatypes.Rate, error) {
 	}
 
 	res, err := http.Get(fmt.Sprintf(apiUrl, ucc))
-
 	if err != nil {
 		return nil, err
 	}

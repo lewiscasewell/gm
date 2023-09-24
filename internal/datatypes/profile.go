@@ -1,7 +1,6 @@
 package datatypes
 
 import (
-	"crypto-price/util"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,6 +11,17 @@ type Profile struct {
 	Name         string `json:"name"`
 	Token        string `json:"token"`
 	BaseCurrency string `json:"baseCurrency"`
+	FileUrl      string `json:"fileUrl"`
+}
+
+var DefaultProfile = Profile{
+	Name:         "Chief",
+	Token:        "",
+	BaseCurrency: "GBP",
+}
+
+func (p Profile) String() string {
+	return fmt.Sprintf("Name: %s\nToken: %s\nBase Currency: %s", p.Name, p.Token, p.BaseCurrency)
 }
 
 func (p *Profile) GetFiatSymbol() string {
@@ -33,12 +43,9 @@ func (p *Profile) GetFromJsonFile() error {
 		return err
 	}
 
-	profileURL, err := util.GetFileUrl("profile")
-	if err != nil {
-		return err
-	}
+	fileUrl := p.FileUrl
 
-	b, err := os.ReadFile(profileURL)
+	b, err := os.ReadFile(fileUrl)
 	if err != nil {
 		newProfile := []byte(`{
 			"name": "Chief",
@@ -46,15 +53,18 @@ func (p *Profile) GetFromJsonFile() error {
 			"baseCurrency": "GBP"
 		}`)
 
-		if err = os.Mkdir(fmt.Sprintf("%s/gm", dirname), 0755); err != nil {
+		// check if gm directory exists
+		if _, err := os.Stat(fmt.Sprintf("%s/gm", dirname)); os.IsNotExist(err) {
+			if err = os.Mkdir(fmt.Sprintf("%s/gm", dirname), 0755); err != nil {
+				panic(err)
+			}
+		}
+
+		if err = os.WriteFile(fileUrl, newProfile, 0644); err != nil {
 			panic(err)
 		}
 
-		if err = os.WriteFile(profileURL, newProfile, 0644); err != nil {
-			panic(err)
-		}
-
-		b, err = os.ReadFile(profileURL)
+		b, err = os.ReadFile(fileUrl)
 		if err != nil {
 			panic(err)
 		}
@@ -76,10 +86,7 @@ func (p *Profile) SetTokenAndSave(newToken string) error {
 		return err
 	}
 
-	profileURL, err := util.GetFileUrl("profile")
-	if err != nil {
-		return err
-	}
+	profileURL := p.FileUrl
 
 	if err = os.WriteFile(profileURL, b, 0644); err != nil {
 		return err
@@ -89,6 +96,10 @@ func (p *Profile) SetTokenAndSave(newToken string) error {
 }
 
 func (p *Profile) SetNameAndSave(newName string) error {
+	if newName == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
 	p.Name = newName
 
 	b, err := json.Marshal(p)
@@ -96,10 +107,9 @@ func (p *Profile) SetNameAndSave(newName string) error {
 		return err
 	}
 
-	profileURL, err := util.GetFileUrl("profile")
-	if err != nil {
-		return err
-	}
+	profileURL := p.FileUrl
+
+	fmt.Println(profileURL)
 
 	if err = os.WriteFile(profileURL, b, 0644); err != nil {
 		return err
@@ -110,10 +120,7 @@ func (p *Profile) SetNameAndSave(newName string) error {
 
 func (p *Profile) SetCurrencyAndSave(newCurrency string) error {
 	nc := strings.ToUpper(newCurrency)
-	profileURL, err := util.GetFileUrl("profile")
-	if err != nil {
-		return err
-	}
+	profileURL := p.FileUrl
 
 	if nc != "GBP" && nc != "USD" && nc != "EUR" {
 		return fmt.Errorf("base currency must be GBP, USD or EUR, not %s", nc)
@@ -127,5 +134,20 @@ func (p *Profile) SetCurrencyAndSave(newCurrency string) error {
 	}
 
 	os.WriteFile(profileURL, b, 0644)
+	return nil
+}
+
+func (p *Profile) Reset(newP Profile) error {
+	newFileUrl := p.FileUrl
+
+	newProfile, err := json.Marshal(newP)
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(newFileUrl, newProfile, 0644); err != nil {
+		return err
+	}
+
 	return nil
 }

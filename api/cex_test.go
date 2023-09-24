@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestApiCall(t *testing.T) {
+func TestApiCallError(t *testing.T) {
 	_, err := api.GetRate("")
 	if err == nil {
 		t.Error("Expected error but got nil")
