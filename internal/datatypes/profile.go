@@ -1,6 +1,7 @@
 package datatypes
 
 import (
+	"crypto-price/internal/util"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -109,8 +110,6 @@ func (p *Profile) SetNameAndSave(newName string) error {
 
 	profileURL := p.FileUrl
 
-	fmt.Println(profileURL)
-
 	if err = os.WriteFile(profileURL, b, 0644); err != nil {
 		return err
 	}
@@ -146,6 +145,26 @@ func (p *Profile) Reset(newP Profile) error {
 	}
 
 	if err := os.WriteFile(newFileUrl, newProfile, 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Profile) RestoreFileUrl() error {
+	profileUrl, err := util.GetFileUrl("profile")
+	if err != nil {
+		return err
+	}
+
+	p.FileUrl = profileUrl
+
+	newProfile, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(profileUrl, newProfile, 0644); err != nil {
 		return err
 	}
 

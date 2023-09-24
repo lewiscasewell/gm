@@ -17,7 +17,7 @@ import (
 
 var profile datatypes.Profile
 
-func init() {
+func main() {
 	profileURL, err := util.GetFileUrl("profile")
 	if err != nil {
 		panic(err)
@@ -26,9 +26,11 @@ func init() {
 	if err := profile.GetFromJsonFile(); err != nil {
 		panic(err)
 	}
-}
 
-func main() {
+	if profile.FileUrl != profileURL {
+		profile.RestoreFileUrl()
+	}
+
 	walletURL, err := util.GetFileUrl("wallet")
 	if err != nil {
 		panic(err)
