@@ -12,12 +12,23 @@ coverage:
 	@go tool cover -html=coverage.out
 
 build:
-	@go build -o bin/gm -v
+	@GOOS=linux GOARCH=amd64 go build -o bin/gm -v
+	@GOOS=windows GOARCH=amd64 go build -o bin/gm.exe -v
+	@GOOS=darwin GOARCH=amd64 go build -o bin/gm-mac -v
 
-deploy:
+move-to-bin:
 	@cp bin/gm /usr/local/bin
-	@echo "Deployed to /usr/local/bin"
+
+delete-bin:
 	@rm -rf bin
 
-bad: build deploy
+it: build move-to-bin delete-bin
 
+tar:
+	@tar -czvf gm.tar.gz bin/gm
+
+zip:
+	@zip -r gm.zip bin/gm.exe
+
+install:
+	@go install
