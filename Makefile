@@ -12,9 +12,9 @@ coverage:
 	@go tool cover -html=coverage.out
 
 build:
-	@GOOS=linux GOARCH=amd64 go build -o bin/gm -v
+	@GOOS=linux GOARCH=amd64 go build -o bin/gm-linux -v
 	@GOOS=windows GOARCH=amd64 go build -o bin/gm.exe -v
-	@GOOS=darwin GOARCH=amd64 go build -o bin/gm-mac -v
+	@GOOS=darwin GOARCH=arm64 go build -o bin/gm -v
 
 move-to-bin:
 	@cp bin/gm /usr/local/bin
