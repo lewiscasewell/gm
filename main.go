@@ -95,14 +95,28 @@ func main() {
 						panic(err)
 					}
 
-					fmt.Printf("You have %s%.2f worth of %s\n", fiatSymbol, r.Price*a*exchangeRate, s)
+					fmt.Printf("You have %s%.2f worth of %s (%.5f per %s)\n", fiatSymbol, r.Price*a*exchangeRate, s, r.Price*exchangeRate, r.Currency)
 					totalWorth += r.Price * a * exchangeRate
 				}(symbol, amount)
 			}
 
 			wg.Wait()
 
-			defer fmt.Printf("\nTotal: %s%.2f at %s\n", fiatSymbol, totalWorth, time.Now().Format("15:04:05"))
+			fmt.Printf("\nTotal: %s%.2f at %s\n", fiatSymbol, totalWorth, time.Now().Format("15:04:05"))
+			if profile.LastCheckedAmount != 0 {
+				difference := util.UnsignFloat64(totalWorth - profile.LastCheckedAmount)
+				percent := (totalWorth - profile.LastCheckedAmount) / profile.LastCheckedAmount * 100
+				var moreOrLess string
+				if percent > 0 {
+					moreOrLess = "more"
+				} else {
+					moreOrLess = "less"
+				}
+
+				fmt.Printf("This is %s%.2f (%.2f%%) %s than when you last checked at %s\n", fiatSymbol, difference, percent, moreOrLess, profile.LastCheckedTime.Format("15:04:05"))
+			}
+
+			profile.SetLastCheckedAndSave(totalWorth)
 			return nil
 		},
 		Commands: []*cli.Command{

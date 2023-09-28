@@ -6,19 +6,25 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 type Profile struct {
-	Name         string `json:"name"`
-	Token        string `json:"token"`
-	BaseCurrency string `json:"baseCurrency"`
-	FileUrl      string `json:"fileUrl"`
+	Name              string    `json:"name"`
+	Token             string    `json:"token"`
+	BaseCurrency      string    `json:"baseCurrency"`
+	FileUrl           string    `json:"fileUrl"`
+	LastCheckedTime   time.Time `json:"lastCheckedTime"`
+	LastCheckedAmount float64   `json:"lastCheckedAmount"`
 }
 
 var DefaultProfile = Profile{
-	Name:         "Chief",
-	Token:        "",
-	BaseCurrency: "GBP",
+	Name:              "Chief",
+	Token:             "",
+	BaseCurrency:      "GBP",
+	FileUrl:           "",
+	LastCheckedTime:   time.Now(),
+	LastCheckedAmount: 0,
 }
 
 func (p Profile) String() string {
@@ -102,6 +108,24 @@ func (p *Profile) SetNameAndSave(newName string) error {
 	}
 
 	p.Name = newName
+
+	b, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+
+	profileURL := p.FileUrl
+
+	if err = os.WriteFile(profileURL, b, 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Profile) SetLastCheckedAndSave(amount float64) error {
+	p.LastCheckedTime = time.Now()
+	p.LastCheckedAmount = amount
 
 	b, err := json.Marshal(p)
 	if err != nil {
